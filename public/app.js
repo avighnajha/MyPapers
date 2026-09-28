@@ -1,9 +1,8 @@
-import * as pdfjs from '/pdfjs/build/pdf.mjs';
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdfjs/build/pdf.worker.mjs';
+let pdfjs;
 const $ = s => document.querySelector(s);
 const state = { projects: [], papers: [], project: null, filter: 'all', paper: null, pdf: null, page: 1, zoom: null, selection: null, render: 0, open: 0 };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-let toastTimer, noteTimer, noteChain = Promise.resolve(), noteVersion = 0, pendingNotes = null;
+let toastTimer, noteTimer, savingNotes = null, noteVersion = 0, pendingNotes = null;
 function toast(message) { $('#toast').textContent = message; $('#toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').hidden = true, 4500); }
 async function api(url, options = {}) {
   if (options.body && !(options.body instanceof FormData)) { options.headers = { 'Content-Type': 'application/json', ...options.headers }; options.body = JSON.stringify(options.body); }
@@ -44,7 +43,30 @@ function renderLibrary() {
   $('#paper-list').innerHTML = papers.map(p => `<article class="paper-row" draggable="true" data-paper="${p.id}"><span class="pdf-icon">PDF</span><div class="paper-info"><button class="paper-open" data-open="${p.id}">${esc(p.title)}</button><small>${esc(state.projects.find(project => project.id === p.project_id)?.name || '')} &nbsp; · &nbsp; ${new Date(p.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</small></div><span class="status-chip ${p.status}">${p.status === 'read' ? '✓ Read' : '◷ In queue'}</span><button class="row-move" data-move="${p.id}" aria-label="Move ${esc(p.title)}">↗</button></article>`).join('') || (state.papers.length ? '<p class="no-results">No papers here yet. Drop a PDF into a folder, or add one above.</p>' : '');
   $('#paper-list').querySelectorAll('[data-open]').forEach(el => el.onclick = action(() => openPaper(el.dataset.open)));
   $('#paper-list').querySelectorAll('[data-move]').forEach(el => el.onclick = action(() => movePaper(el.dataset.move)));
-  $('#paper-list').querySelectorAll('[draggable]').forEach(el => el.ondragstart = e => { e.dataTransfer.setData('application/x-mypapers', el.dataset.paper); e.dataTransfer.effectAllowed = 'move'; });
+  $('#paper-list').querySelectorAll('[draggable]').forEach(el => {
+    el.ondragstart = e => { e.dataTransfer.setData('application/x-mypapers', el.dataset.paper); e.dataTransfer.effectAllowed = 'move'; };
+    // A pointer handle also supports touch and browsers that do not start native HTML drags.
+    const handle = el.querySelector('.pdf-icon');
+    handle.title = 'Drag to a project folder';
+    handle.onpointerdown = e => {
+      if (e.button !== 0) return;
+      e.preventDefault(); handle.setPointerCapture(e.pointerId);
+      const start = { x: e.clientX, y: e.clientY }; let target = null;
+      const clear = () => { target?.classList.remove('drag-over'); el.classList.remove('dragging'); handle.onpointermove = handle.onpointerup = handle.onpointercancel = null; };
+      handle.onpointermove = move => {
+        if (Math.hypot(move.clientX - start.x, move.clientY - start.y) < 6) return;
+        el.classList.add('dragging'); target?.classList.remove('drag-over');
+        target = document.elementFromPoint(move.clientX, move.clientY)?.closest('.folder'); target?.classList.add('drag-over');
+      };
+      handle.onpointerup = action(async up => {
+        const folder = target; clear(); if (handle.hasPointerCapture(up.pointerId)) handle.releasePointerCapture(up.pointerId);
+        if (!folder) return;
+        await api(`/papers/${el.dataset.paper}`, { method: 'PATCH', body: { project_id: folder.dataset.project, status: folder.dataset.status } });
+        await refresh(); toast('Paper moved.');
+      });
+      handle.onpointercancel = clear;
+    };
+  });
   document.querySelectorAll('[data-filter]').forEach(el => el.classList.toggle('selected', el.dataset.filter === state.filter));
   $('#library-stats').textContent = `${papers.length} paper${papers.length === 1 ? '' : 's'} · ${state.papers.filter(p => p.status === 'read').length} read · ${state.papers.filter(p => p.status === 'queue').length} in queue`;
 }
@@ -94,6 +116,9 @@ async function openPaper(id) {
   $('#download').href = `/api/papers/${id}/pdf`; $('#download').download = `${paper.title}.pdf`; $('#open-pdf').href = `/api/papers/${id}/pdf`;
   $('#pdf-page').hidden = true; $('#pdf-status').textContent = 'Opening your paper…';
   try {
+    pdfjs ||= await import('/pdfjs/build/pdf.mjs');
+    pdfjs.GlobalWorkerOptions.workerSrc = '/pdfjs/build/pdf.worker.mjs';
+    if (token !== state.open) return;
     const pdf = await pdfjs.getDocument({ url: `/api/papers/${id}/pdf`, cMapUrl: '/pdfjs/cmaps/', cMapPacked: true, standardFontDataUrl: '/pdfjs/standard_fonts/', wasmUrl: '/pdfjs/wasm/', isEvalSupported: false }).promise;
     if (token !== state.open) { await pdf.destroy(); return; }
     state.pdf = pdf; $('#page-count').textContent = `/ ${pdf.numPages}`; $('#page-number').max = pdf.numPages;
@@ -105,7 +130,7 @@ async function renderPage() {
   const token = ++state.render, pdf = state.pdf, number = state.page; state.selection = null;
   const page = await pdf.getPage(number); if (token !== state.render) return;
   const base = page.getViewport({ scale: 1 });
-  const scale = state.zoom || Math.max(.25, ($('#pdf-scroll').clientWidth - 36) / base.width);
+  const scale = state.zoom || Math.max(.25, ($('#pdf-scroll').clientWidth - 38) / base.width);
   const viewport = page.getViewport({ scale });
   // Render offscreen so changing pages quickly never reuses an active canvas.
   const canvas = document.createElement('canvas'); canvas.id = 'pdf-canvas';
@@ -157,14 +182,16 @@ function renderAnnotations() {
 function updateWordCount() { const n = $('#notes').value.trim().split(/\s+/).filter(Boolean).length; $('#word-count').textContent = `${n} word${n === 1 ? '' : 's'}`; }
 async function flushNotes() {
   clearTimeout(noteTimer);
-  if (pendingNotes) {
-    const draft = pendingNotes; pendingNotes = null;
-    noteChain = noteChain.catch(() => {}).then(async () => {
+  if (savingNotes) { await savingNotes; if (pendingNotes) return flushNotes(); return; }
+  if (!pendingNotes) return;
+  savingNotes = (async () => {
+    while (pendingNotes) {
+      const draft = pendingNotes; pendingNotes = null;
       try { await api(`/papers/${draft.id}`, { method: 'PATCH', body: { notes: draft.notes } }); if (state.paper?.id === draft.id && draft.version === noteVersion) $('#save-state').textContent = 'Saved'; }
       catch (error) { if (!pendingNotes || pendingNotes.version < draft.version) pendingNotes = draft; if (state.paper?.id === draft.id) $('#save-state').textContent = 'Not saved · retrying'; noteTimer = setTimeout(() => flushNotes().catch(() => {}), 4000); throw error; }
-    });
-  }
-  await noteChain;
+    }
+  })();
+  try { await savingNotes; } finally { savingNotes = null; }
 }
 $('#notes').oninput = () => { if (!state.paper) return; state.paper.notes = $('#notes').value; pendingNotes = { id: state.paper.id, notes: state.paper.notes, version: ++noteVersion }; $('#save-state').textContent = 'Saving…'; updateWordCount(); clearTimeout(noteTimer); noteTimer = setTimeout(() => flushNotes().catch(e => toast(e.message)), 650); };
 window.addEventListener('beforeunload', e => { if (pendingNotes || $('#save-state').textContent !== 'Saved') { e.preventDefault(); e.returnValue = ''; } });

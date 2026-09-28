@@ -82,4 +82,4 @@ app.use('/pdfjs', express.static(path.join(root, 'node_modules/pdfjs-dist')));
 app.use(express.static(path.join(root, 'public')));
 app.use((err, req, res, next) => { console.error(err.message); res.status(err instanceof multer.MulterError ? 400 : 500).json({ error: err instanceof multer.MulterError ? 'Upload failed. PDFs must be smaller than 100 MB.' : 'Something went wrong. Please try again.' }); });
 const port = Number(process.env.PORT || 3000);
-app.listen(port, process.env.HOST || '127.0.0.1', () => console.log(`MyPapers ready at http://${process.env.HOST || '127.0.0.1'}:${port}${password ? '' : ' (local development, no password)'}`));
+const server = app.listen(port, process.env.HOST || '127.0.0.1', () => console.log(`MyPapers ready at http://${process.env.HOST || '127.0.0.1'}:${server.address().port}${password ? '' : ' (local development, no password)'}`));

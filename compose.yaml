@@ -1,0 +1,13 @@
+services:
+  mypapers:
+    build: .
+    restart: unless-stopped
+    environment:
+      APP_PASSWORD: ${APP_PASSWORD:?Set APP_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - library:/app/data
+    init: true
+volumes:
+  library:
