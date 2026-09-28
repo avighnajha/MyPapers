@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5f0"><title>MyPapers — a little room for ideas</title>
+  <link rel="stylesheet" href="/pdfjs/web/pdf_viewer.css"><link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="MyPapers home"><span class="brand-icon">▤</span> MyPapers<span class="brand-dot">.</span></a>
+    <div class="sidebar-caption">A LITTLE ROOM FOR IDEAS</div>
+    <button id="all-papers" class="nav-home active"><span>▦ &nbsp; All papers</span><span id="total-count" class="count">0</span></button>
+    <div class="section-label">PROJECTS <button id="add-project" class="icon-button" title="New project" aria-label="New project">+</button></div>
+    <nav id="folders" aria-label="Project folders"></nav>
+    <div class="sidebar-bottom"><div class="drop-symbol">↧</div><p>A new idea to explore?</p><span>Drop PDFs into any folder,<br>or add them below.</span><button id="upload" class="primary">＋ Add papers</button><small>Your own quiet corner of the web.</small></div>
+  </aside>
+  <main>
+    <header class="topbar"><div id="breadcrumb">Library <span>/</span> All papers</div><div class="top-actions"><span class="local-label">PERSONAL LIBRARY</span><button id="library-button" hidden>← Library</button></div></header>
+    <section id="library" class="library">
+      <div class="library-heading"><div><div class="eyebrow">READ. THINK. CONNECT.</div><h1 id="library-title">Your reading room.</h1><p id="library-subtitle">Keep the papers. Make the connections.</p></div><button id="upload-main" class="primary">＋ Add papers</button></div>
+      <div class="library-tools"><div class="filters"><button data-filter="all" class="selected">All papers</button><button data-filter="queue">Queue</button><button data-filter="read">Read</button></div><label class="search">⌕ <input id="search" type="search" placeholder="Find a paper…" aria-label="Find a paper"></label></div>
+      <div id="paper-list"></div>
+      <div id="empty" class="empty"><div class="paper-illustration"><span>THE NEXT<br>GOOD IDEA.</span><i></i><i></i><i></i></div><h2>A little space for your next big thought.</h2><p>Add a paper to start your collection.<br>Read it, highlight what matters, and make it your own.</p><button id="upload-empty" class="primary">＋ Add your first paper</button><small>PDF files · up to 100 MB each · drag & drop welcome</small></div>
+      <footer class="library-footer"><span id="library-stats">0 papers in your collection</span><span>One paper at a time.</span></footer>
+    </section>
+    <section id="workspace" hidden>
+      <div class="paper-heading"><div><span class="eyebrow">ON YOUR DESK</span><h2 id="paper-title"></h2></div><div class="paper-actions"><select id="paper-status" aria-label="Reading status"><option value="queue">In queue</option><option value="read">Read</option></select><button id="rename-paper" title="Rename paper">Rename</button><button id="move-paper">Move</button><button id="toggle-notes" aria-pressed="true">Notes</button><button id="toggle-comments" aria-pressed="true">Comments</button><button id="delete-paper" class="danger" aria-label="Delete paper">Delete</button></div></div>
+      <div class="reading-layout">
+        <section class="reader" aria-label="PDF reader"><div class="reader-toolbar"><div><button id="prev-page" aria-label="Previous page">‹</button><input id="page-number" type="number" min="1" value="1" aria-label="Page number"><span id="page-count">/ 1</span><button id="next-page" aria-label="Next page">›</button></div><div><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-fit" title="Fit to width">Fit</button><button id="zoom-in" aria-label="Zoom in">＋</button><a id="download" class="button" download title="Download original PDF">↓ PDF</a><a id="open-pdf" class="button" target="_blank" rel="noopener" title="Open original PDF to print">↗</a></div></div>
+        <div class="annotation-toolbar"><span>Select text to</span><button id="highlight">Highlight</button><button id="comment">＋ Comment</button><select id="highlight-color" aria-label="Highlight color"><option value="yellow">Yellow</option><option value="green">Green</option><option value="pink">Pink</option></select><button id="page-comment" title="Add a comment without selecting text">Page note</button></div>
+        <div id="pdf-scroll"><div id="pdf-status" role="status"></div><div id="pdf-page"><canvas id="pdf-canvas"></canvas><div id="highlights"></div><div id="text-layer" class="textLayer"></div></div></div>
+        <div class="reader-footnote">Highlights and comments are saved with your library. Original PDFs stay intact.</div></section>
+        <section id="notes-panel" class="notes-panel"><div class="panel-heading"><h3>My notes</h3><span id="save-state">Saved</span></div><div class="note-caption">SPACE TO THINK OUT LOUD</div><textarea id="notes" placeholder="What stands out?&#10;&#10;Questions, connections, a thought to come back to…" aria-label="Personal notes" spellcheck="true"></textarea><div class="panel-footer"><span id="word-count">0 words</span><button id="copy-notes">Copy notes</button></div></section>
+        <section id="comments-panel" class="comments-panel"><div class="panel-heading"><h3>Annotations <span id="annotation-count">0</span></h3><button id="copy-comments">Copy all</button></div><div id="annotations"></div></section>
+      </div>
+    </section>
+  </main>
+  <input id="file-input" type="file" accept="application/pdf,.pdf" multiple hidden>
+  <dialog id="form-dialog"><form id="dialog-form"><div class="eyebrow">MYPAPERS</div><h2 id="dialog-title"></h2><div id="dialog-fields"></div><div class="dialog-actions"><button type="button" id="dialog-cancel">Cancel</button><button type="submit" id="dialog-submit" class="primary">Save</button></div></form></dialog>
+  <div id="toast" role="status" hidden></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
