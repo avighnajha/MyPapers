@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>MyPapers</title>
+  <rect width="64" height="64" rx="14" fill="#52775a"/>
+  <path d="M19 17h22a5 5 0 0 1 5 5v26H24a7 7 0 0 1-7-7V19a2 2 0 0 1 2-2Z" fill="#f8f9f5"/>
+  <path d="M24 17v24M17 41a7 7 0 0 1 7-7h22" fill="none" stroke="#d5dfcd" stroke-width="3"/>
+  <path d="M30 23h10m-10 6h10" fill="none" stroke="#52775a" stroke-width="3" stroke-linecap="round"/>
+  <path d="M17 41a7 7 0 0 0 7 7h22" fill="none" stroke="#f8f9f5" stroke-width="3" stroke-linecap="round"/>
+</svg>

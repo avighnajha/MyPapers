@@ -7,6 +7,7 @@
 #folders{flex:1 0 auto}.sidebar-bottom{flex-shrink:0}
 .pdf-icon{touch-action:none;user-select:none;cursor:grab}.paper-row.dragging{opacity:.5}.paper-row.dragging .pdf-icon{cursor:grabbing}
 .reading-mode-bar{display:none}
+.brand-logo{display:block;flex-shrink:0;margin-right:11px;border-radius:7px}
 body.reading-mode{height:100dvh;overflow:hidden}
 .reading-mode .sidebar,.reading-mode .topbar,.reading-mode .paper-heading,.reading-mode #comments-panel{display:none!important}
 .reading-mode main{height:100dvh;width:100%}
