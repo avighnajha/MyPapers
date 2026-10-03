@@ -10,3 +10,13 @@ export function readingShortcut(event, { reading, dialogOpen, selectionActive })
   if (event.key === '-') return 'zoom-out';
   return null;
 }
+
+export function filterAnnotations(annotations, query) {
+  const term = query.trim().toLowerCase();
+  return annotations.filter(a => !term || `${a.quote}\n${a.comment}\npage ${a.page}`.toLowerCase().includes(term));
+}
+
+export function swipeDirection({ dx, dy, duration, multipleTouches, selectionActive, horizontallyScrollable }) {
+  if (multipleTouches || selectionActive || horizontallyScrollable || duration > 650 || Math.abs(dx) < 65 || Math.abs(dx) < Math.abs(dy) * 1.5) return null;
+  return dx < 0 ? 'next' : 'previous';
+}

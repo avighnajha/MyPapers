@@ -13,6 +13,8 @@ A quiet, self-hosted reading room for your papers. A single Node process serves 
 - Review annotations with their quoted passages and page numbers; jump to a passage, edit a comment, or copy one/all annotations.
 - Write plain-text notes beside the paper. Notes save automatically; the status shows when saving succeeds or needs a retry.
 - Rename papers and projects, search paper titles, and hide either side panel for more reading space.
+- Search annotation quotes, comments, and page numbers. The top dark-mode toggle remembers your preference in each browser.
+- On phones, compact controls sit at the top and the PDF takes the rest of the screen. Notes are hidden by default; tap **Notes** to open or close them. Tap **Annotate** for highlights/comments. Swipe left for the next page or right for the previous page when fitted to the screen; zoomed pages retain horizontal panning. Pinch zoom, vertical scrolling, and text selection do not trigger page turns.
 
 Files, notes, and annotations live on the server, so every browser visiting your instance sees the same library. Reload to see changes from another browser. This is a personal, single-user app, not a collaborative editor: concurrent edits use the last saved version.
 
@@ -74,7 +76,7 @@ To restore, stop the app and copy the backed-up directory contents back into `/a
 
 - PDFs are limited to 100 MB each. Scanned PDFs can be read and given page notes, but need an existing text layer for text selection; OCR is not included.
 - Annotations are stored alongside the original PDF in the library database. Download returns the untouched original; embedding annotations into an exported PDF, freehand drawing, signatures, forms, and PDF editing are not included.
-- PDF text is rendered one page at a time to limit memory use. The layout is designed for desktop; narrow screens can scroll the reading panels sideways.
+- PDF text is rendered one page at a time to limit memory use. Phone side panels open over the reader; fullscreen hides the annotations list while keeping annotation tools available.
 - SQLite runs through `sql.js` without native build tools. Metadata is held in memory and saved with an atomic file replacement after each change. Run **one application process** per data directory. This suits a personal library; it is not intended for a large multi-user service.
 - Uses system fonts and serves all assets locally. Your library is not sent to third-party services.
 

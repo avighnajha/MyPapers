@@ -7,6 +7,8 @@
 #folders{flex:1 0 auto}.sidebar-bottom{flex-shrink:0}
 .pdf-icon{touch-action:none;user-select:none;cursor:grab}.paper-row.dragging{opacity:.5}.paper-row.dragging .pdf-icon{cursor:grabbing}
 .reading-mode-bar{display:none}
+.mobile-reader-bar{display:none}.reader-theme{display:none}.reading-mode .reader-theme{display:block}
+.annotation-search{padding:12px 16px;border-bottom:1px solid var(--line)}.annotation-search input{width:100%;min-width:0;font-size:12px}
 .brand-logo{display:block;flex-shrink:0;margin-right:11px;border-radius:7px}
 body.reading-mode{height:100dvh;overflow:hidden}
 .reading-mode .sidebar,.reading-mode .topbar,.reading-mode .paper-heading,.reading-mode #comments-panel{display:none!important}
@@ -19,3 +21,30 @@ body.reading-mode{height:100dvh;overflow:hidden}
 .reading-mode .reader-toolbar{flex-wrap:wrap}
 .reading-mode .reader-footnote{display:none}
 @media(max-width:600px){.reading-mode #notes-panel{width:200px}.reading-mode .reader{min-width:260px}.reading-mode .reading-mode-bar span:last-child{display:none}}
+
+[data-theme=dark]{color-scheme:dark;--bg:#171d19;--paper:#222c25;--ink:#e1e8de;--muted:#a2afa0;--line:#354236;--green:#83a985;--pale:#2c3c2e}
+[data-theme=dark] button,[data-theme=dark] .button,[data-theme=dark] input,[data-theme=dark] select,[data-theme=dark] dialog{background:var(--paper);color:var(--ink)}
+[data-theme=dark] .sidebar{background:#1d271f}[data-theme=dark] .nav-home.active,[data-theme=dark] .folder.active{background:var(--pale);color:var(--ink)}
+[data-theme=dark] .notes-panel,[data-theme=dark] .comments-panel,[data-theme=dark] .reader-toolbar,[data-theme=dark] .annotation-toolbar{background:#1e2821}
+[data-theme=dark] .reader{background:#121813}[data-theme=dark] .paper-row:hover{background:var(--pale)}
+[data-theme=dark] #pdf-canvas{filter:invert(.88) hue-rotate(180deg)}[data-theme=dark] #pdf-page{background:#1f2521}
+[data-theme=dark] .primary{background:#52775a;color:#fff}[data-theme=dark] .paper-illustration{background:var(--paper);box-shadow:8px 8px 0 var(--pale)}
+[data-theme=dark] .status-chip,[data-theme=dark] .pdf-icon{background:var(--pale);color:var(--ink)}
+[data-theme=dark] #notes,[data-theme=dark] dialog textarea{color:var(--ink);background:var(--paper)}
+@media(max-width:760px){
+  body{display:flex;flex-direction:column;height:100dvh;overflow:hidden}.sidebar{position:static;width:100%;height:auto;max-height:36dvh;padding:12px 16px;display:block;border-bottom:1px solid var(--line)}
+  .sidebar-caption,.sidebar-bottom{display:none}.brand{font-size:21px}.section-label{margin:12px 9px 4px}#folders{display:flex;gap:10px;overflow-x:auto;min-height:0}.project{min-width:155px;margin:0 0 6px}.nav-home{margin-top:8px;padding:8px}
+  main{height:auto;min-height:0}.topbar{height:45px;padding:0 12px;gap:8px}.topbar button{font-size:11px;padding:5px 7px}.top-actions{gap:5px}.library{min-height:0;padding:20px 16px}.library-heading h1{font-size:28px}.library-tools{margin-top:20px}.empty{padding:20px 0}.paper-illustration{height:105px;margin-bottom:20px;padding:12px}
+  body.paper-open .sidebar,body.paper-open .topbar,body.paper-open .paper-heading{display:none!important}
+  body.paper-open main{height:100dvh}#workspace{height:100%;min-height:0}.reading-mode .reading-mode-bar{display:none}
+  .mobile-reader-bar{display:flex;align-items:center;gap:5px;padding:5px 8px;background:var(--bg);border-bottom:1px solid var(--line);flex-shrink:0}
+  .mobile-reader-bar button{font-size:11px;padding:5px 8px}.reading-mode #mobile-comments{display:none}
+  .reading-layout,.reading-mode .reading-layout{height:auto;flex:1;overflow:hidden;position:relative;min-height:0}
+  .reader,.reading-mode .reader{width:100%;min-width:0;flex:1}
+  .reader-toolbar{padding:5px 8px;gap:4px;flex-wrap:wrap;flex-shrink:0}.reader-toolbar>div{gap:3px}.reader-toolbar button,.reader-toolbar .button{font-size:10px;padding:5px}.reader-toolbar input{width:34px}.reader-theme{display:block}
+  .annotation-toolbar{display:none;flex-shrink:0;padding:5px 8px}.mobile-tools-open .annotation-toolbar{display:flex}
+  .reader-footnote{display:none}#pdf-scroll{padding:8px;touch-action:pan-y pinch-zoom}
+  #notes-panel,#comments-panel,.reading-mode #notes-panel{position:absolute;right:0;top:0;bottom:0;width:min(340px,90vw);z-index:8;box-shadow:-10px 0 30px #0003;background:var(--bg)}
+  .reading-mode #notes-panel[hidden]{display:none!important}
+  .panel-heading{height:45px;padding:12px}.note-caption{padding-top:14px}#notes{padding:12px 16px}.annotation-search{padding:10px 12px}
+}

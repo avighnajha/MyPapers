@@ -1,4 +1,5 @@
-import { readingShortcut } from './reading-controls.js';
+import { readingShortcut, swipeDirection, filterAnnotations } from './reading-controls.js';
+import { closePdfSession } from './pdf-session.js';
 let pdfjs;
 let readingMode = false, ownsFullscreen = false;
 function setReadingMode(enabled) {
@@ -14,7 +15,7 @@ async function exitReadingMode() {
   ownsFullscreen = false;
 }
 const $ = s => document.querySelector(s);
-const state = { projects: [], papers: [], project: null, filter: 'all', paper: null, pdf: null, page: 1, zoom: null, selection: null, render: 0, open: 0 };
+const state = { projects: [], papers: [], project: null, filter: 'all', paper: null, pdf: null, pdfTask: null, page: 1, zoom: null, selection: null, render: 0, open: 0 };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 let toastTimer, noteTimer, savingNotes = null, noteVersion = 0, pendingNotes = null;
 function toast(message) { $('#toast').textContent = message; $('#toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').hidden = true, 4500); }
@@ -87,7 +88,8 @@ function renderLibrary() {
 async function showLibrary(project = null, filter = 'all') {
   await exitReadingMode();
   await flushNotes(); ++state.open; ++state.render; state.paper = null; state.selection = null;
-  if (state.pdf) { await state.pdf.destroy(); state.pdf = null; }
+  await closePdfSession(state);
+  document.body.classList.remove('paper-open');
   state.project = project; state.filter = filter;
   $('#workspace').hidden = true; $('#library').hidden = false; $('#library-button').hidden = true; renderLibrary();
 }
@@ -121,9 +123,18 @@ async function uploadFiles(files, project, status) {
 }
 async function openPaper(id) {
   await flushNotes(); const token = ++state.open; ++state.render;
-  if (state.pdf) { await state.pdf.destroy(); state.pdf = null; }
+  await closePdfSession(state);
   const paper = await api(`/papers/${id}`); if (token !== state.open) return;
   state.paper = paper; state.page = 1; state.zoom = null; state.selection = null;
+  document.body.classList.add('paper-open');
+  document.body.classList.remove('mobile-tools-open');
+  $('#annotation-search').value = '';
+  if (window.matchMedia('(max-width: 760px)').matches) {
+    $('#notes-panel').hidden = true; $('#comments-panel').hidden = true;
+    $('#toggle-notes').setAttribute('aria-pressed', 'false'); $('#mobile-notes').setAttribute('aria-pressed', 'false');
+    $('#toggle-comments').setAttribute('aria-pressed', 'false'); $('#mobile-comments').setAttribute('aria-pressed', 'false');
+    $('#mobile-tools').setAttribute('aria-pressed', 'false');
+  }
   $('#library').hidden = true; $('#workspace').hidden = false; $('#library-button').hidden = false;
   $('#paper-title').textContent = paper.title; $('#paper-status').value = paper.status;
   $('#breadcrumb').textContent = `Library / ${state.projects.find(p => p.id === paper.project_id)?.name || 'Paper'}`;
@@ -134,8 +145,10 @@ async function openPaper(id) {
     pdfjs ||= await import('/pdfjs/build/pdf.mjs');
     pdfjs.GlobalWorkerOptions.workerSrc = '/pdfjs/build/pdf.worker.mjs';
     if (token !== state.open) return;
-    const pdf = await pdfjs.getDocument({ url: `/api/papers/${id}/pdf`, cMapUrl: '/pdfjs/cmaps/', cMapPacked: true, standardFontDataUrl: '/pdfjs/standard_fonts/', wasmUrl: '/pdfjs/wasm/', isEvalSupported: false }).promise;
-    if (token !== state.open) { await pdf.destroy(); return; }
+    const task = pdfjs.getDocument({ url: `/api/papers/${id}/pdf`, cMapUrl: '/pdfjs/cmaps/', cMapPacked: true, standardFontDataUrl: '/pdfjs/standard_fonts/', wasmUrl: '/pdfjs/wasm/', isEvalSupported: false });
+    state.pdfTask = task;
+    const pdf = await task.promise;
+    if (token !== state.open) { await task.destroy(); return; }
     state.pdf = pdf; $('#page-count').textContent = `/ ${pdf.numPages}`; $('#page-number').max = pdf.numPages;
     await renderPage();
   } catch (e) { if (token === state.open) $('#pdf-status').textContent = `Unable to display this PDF: ${e.message}. You can still download the original.`; }
@@ -145,7 +158,9 @@ async function renderPage() {
   const token = ++state.render, pdf = state.pdf, number = state.page; state.selection = null;
   const page = await pdf.getPage(number); if (token !== state.render) return;
   const base = page.getViewport({ scale: 1 });
-  const scale = state.zoom || Math.max(.25, ($('#pdf-scroll').clientWidth - 38) / base.width);
+  const scrollStyle = getComputedStyle($('#pdf-scroll'));
+  const padding = parseFloat(scrollStyle.paddingLeft) + parseFloat(scrollStyle.paddingRight);
+  const scale = state.zoom || Math.max(.25, ($('#pdf-scroll').clientWidth - padding - 2) / base.width);
   const viewport = page.getViewport({ scale });
   // Render offscreen so changing pages quickly never reuses an active canvas.
   const canvas = document.createElement('canvas'); canvas.id = 'pdf-canvas';
@@ -186,10 +201,11 @@ function renderHighlights() { $('#highlights').innerHTML = (state.paper?.annotat
 function annotationText(a) { return `Page ${a.page}${a.quote ? '\n> ' + a.quote.replace(/\n/g, '\n> ') : ''}${a.comment ? '\n\n' + a.comment : ''}`; }
 async function copy(text) { try { await navigator.clipboard.writeText(text); toast('Copied to clipboard.'); } catch { await dialog('Copy this text', `<label>Select and copy<textarea readonly>${esc(text)}</textarea></label>`, 'Done'); } }
 function renderAnnotations() {
-  const annotations = [...state.paper.annotations].sort((a, b) => a.page - b.page || a.created_at.localeCompare(b.created_at));
-  $('#annotation-count').textContent = annotations.length;
+  const annotations = filterAnnotations(state.paper.annotations, $('#annotation-search').value).sort((a, b) => a.page - b.page || a.created_at.localeCompare(b.created_at));
+  $('#annotation-count').textContent = $('#annotation-search').value ? `${annotations.length}/${state.paper.annotations.length}` : annotations.length;
   $('#annotations').innerHTML = annotations.length ? annotations.map(a => `<article class="annotation-card ${a.color}" data-annotation="${a.id}"><button class="page-link" data-page="${a.page}">PAGE ${a.page} ↗</button>${a.quote ? `<blockquote>${esc(a.quote)}</blockquote>` : ''}${a.comment ? `<p>${esc(a.comment)}</p>` : ''}<div class="annotation-actions"><button data-copy="${a.id}">Copy</button><button data-edit="${a.id}">${a.comment ? 'Edit' : 'Add comment'}</button><button data-delete="${a.id}">Delete</button></div></article>`).join('') : '<div class="annotations-empty">Leave a trail of thoughts.<br><br>Select a passage to highlight it or attach a comment. Your passages and comments will appear here, ready to copy.</div>';
-  $('#annotations').querySelectorAll('[data-page]').forEach(el => el.onclick = action(async () => { state.page = Number(el.dataset.page); await renderPage(); const a = state.paper.annotations.find(a => a.id === el.closest('[data-annotation]').dataset.annotation); const rect = a?.rects[0]; $('#pdf-scroll').scrollTo({ top: rect ? rect.y * $('#pdf-page').offsetHeight : 0, behavior: 'smooth' }); }));
+  if (!annotations.length && $('#annotation-search').value) $('#annotations').innerHTML = '<p class="annotations-empty">No matching annotations.</p>';
+  $('#annotations').querySelectorAll('[data-page]').forEach(el => el.onclick = action(async () => { state.page = Number(el.dataset.page); if (window.matchMedia('(max-width: 760px)').matches) $('#comments-panel').hidden = true; await renderPage(); const a = state.paper.annotations.find(a => a.id === el.closest('[data-annotation]').dataset.annotation); const rect = a?.rects[0]; $('#pdf-scroll').scrollTo({ top: rect ? rect.y * $('#pdf-page').offsetHeight : 0, behavior: 'smooth' }); }));
   $('#annotations').querySelectorAll('[data-copy]').forEach(el => el.onclick = action(() => copy(annotationText(annotations.find(a => a.id === el.dataset.copy)))));
   $('#annotations').querySelectorAll('[data-edit]').forEach(el => el.onclick = action(async () => { const a = annotations.find(a => a.id === el.dataset.edit), id = state.paper.id; const result = await dialog('Edit comment', `<label>Comment<textarea name="comment" maxlength="30000">${esc(a.comment)}</textarea></label>`); if (!result) return; await api(`/papers/${id}/annotations/${a.id}`, { method: 'PATCH', body: result }); a.comment = result.comment; if (state.paper?.id === id) renderAnnotations(); }));
   $('#annotations').querySelectorAll('[data-delete]').forEach(el => el.onclick = action(async () => { const id = state.paper.id; await api(`/papers/${id}/annotations/${el.dataset.delete}`, { method: 'DELETE' }); if (state.paper?.id === id) { state.paper.annotations = state.paper.annotations.filter(a => a.id !== el.dataset.delete); renderAnnotations(); renderHighlights(); } }));
@@ -229,6 +245,42 @@ $('#next-page').onclick = action(async () => { if (state.pdf && state.page < sta
 $('#page-number').onchange = action(async () => { if (!state.pdf) return; state.page = Math.max(1, Math.min(state.pdf.numPages, Math.floor(Number($('#page-number').value)) || 1)); await renderPage(); $('#pdf-scroll').scrollTop = 0; });
 for (const [id, factor] of [['zoom-in', 1.2], ['zoom-out', 1 / 1.2]]) $('#' + id).onclick = action(async () => { if (!state.pdf) return; const page = await state.pdf.getPage(state.page); const fit = ($('#pdf-scroll').clientWidth - 36) / page.getViewport({ scale: 1 }).width; state.zoom = Math.max(.25, Math.min(3, (state.zoom || fit) * factor)); await renderPage(); });
 $('#zoom-fit').onclick = action(async () => { state.zoom = null; await renderPage(); });
+$('#annotation-search').oninput = () => { if (state.paper) renderAnnotations(); };
+function applyTheme(dark) {
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  document.querySelectorAll('[data-theme-toggle]').forEach(button => {
+    button.textContent = dark ? 'Light mode' : 'Dark mode'; button.setAttribute('aria-pressed', String(dark));
+  });
+  try { localStorage.setItem('mypapers-theme', dark ? 'dark' : 'light'); } catch {}
+}
+let savedTheme; try { savedTheme = localStorage.getItem('mypapers-theme'); } catch {}
+applyTheme(savedTheme ? savedTheme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches);
+document.querySelectorAll('[data-theme-toggle]').forEach(button => button.onclick = () => applyTheme(document.documentElement.dataset.theme !== 'dark'));
+$('#mobile-library').onclick = action(() => showLibrary(state.project, state.filter));
+for (const name of ['notes', 'comments']) $('#mobile-' + name).onclick = action(async () => {
+  const panel = $('#' + name + '-panel'); panel.hidden = !panel.hidden;
+  $('#mobile-' + name).setAttribute('aria-pressed', String(!panel.hidden));
+  $('#toggle-' + name).setAttribute('aria-pressed', String(!panel.hidden));
+  if (!panel.hidden) { const other = name === 'notes' ? 'comments' : 'notes'; $('#' + other + '-panel').hidden = true; $('#mobile-' + other).setAttribute('aria-pressed', 'false'); }
+});
+$('#mobile-tools').onclick = () => {
+  const enabled = document.body.classList.toggle('mobile-tools-open');
+  $('#mobile-tools').setAttribute('aria-pressed', String(enabled));
+};
+let swipeStart;
+$('#pdf-scroll').addEventListener('touchstart', event => {
+  if (event.touches.length !== 1) { swipeStart = null; return; }
+  const touch = event.touches[0]; swipeStart = { x: touch.clientX, y: touch.clientY, time: performance.now() };
+}, { passive: true });
+$('#pdf-scroll').addEventListener('touchmove', event => { if (event.touches.length !== 1) swipeStart = null; }, { passive: true });
+$('#pdf-scroll').addEventListener('touchcancel', () => swipeStart = null, { passive: true });
+$('#pdf-scroll').addEventListener('touchend', event => {
+  if (!swipeStart || !state.pdf || !window.matchMedia('(max-width: 760px)').matches) return;
+  const start = swipeStart; swipeStart = null; const touch = event.changedTouches[0]; if (!touch) return;
+  const scroll = $('#pdf-scroll');
+  const direction = swipeDirection({ dx: touch.clientX - start.x, dy: touch.clientY - start.y, duration: performance.now() - start.time, multipleTouches: event.touches.length > 0, selectionActive: !window.getSelection()?.isCollapsed, horizontallyScrollable: scroll.scrollWidth > scroll.clientWidth + 3 });
+  if (direction) { const button = $(direction === 'next' ? '#next-page' : '#prev-page'); if (!button.disabled) button.click(); }
+}, { passive: true });
 $('#fullscreen').onclick = action(async () => {
   if (readingMode) return exitReadingMode();
   setReadingMode(true);
