@@ -1,4 +1,18 @@
+import { readingShortcut } from './reading-controls.js';
 let pdfjs;
+let readingMode = false, ownsFullscreen = false;
+function setReadingMode(enabled) {
+  readingMode = enabled;
+  document.body.classList.toggle('reading-mode', enabled);
+  $('#fullscreen').textContent = enabled ? 'Exit full screen' : 'Full screen';
+  $('#fullscreen').setAttribute('aria-pressed', String(enabled));
+  if (state.pdf && !state.zoom) renderPage().catch(e => toast(e.message));
+}
+async function exitReadingMode() {
+  setReadingMode(false);
+  if (ownsFullscreen && document.fullscreenElement) await document.exitFullscreen();
+  ownsFullscreen = false;
+}
 const $ = s => document.querySelector(s);
 const state = { projects: [], papers: [], project: null, filter: 'all', paper: null, pdf: null, page: 1, zoom: null, selection: null, render: 0, open: 0 };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -71,6 +85,7 @@ function renderLibrary() {
   $('#library-stats').textContent = `${papers.length} paper${papers.length === 1 ? '' : 's'} · ${state.papers.filter(p => p.status === 'read').length} read · ${state.papers.filter(p => p.status === 'queue').length} in queue`;
 }
 async function showLibrary(project = null, filter = 'all') {
+  await exitReadingMode();
   await flushNotes(); ++state.open; ++state.render; state.paper = null; state.selection = null;
   if (state.pdf) { await state.pdf.destroy(); state.pdf = null; }
   state.project = project; state.filter = filter;
@@ -214,6 +229,25 @@ $('#next-page').onclick = action(async () => { if (state.pdf && state.page < sta
 $('#page-number').onchange = action(async () => { if (!state.pdf) return; state.page = Math.max(1, Math.min(state.pdf.numPages, Math.floor(Number($('#page-number').value)) || 1)); await renderPage(); $('#pdf-scroll').scrollTop = 0; });
 for (const [id, factor] of [['zoom-in', 1.2], ['zoom-out', 1 / 1.2]]) $('#' + id).onclick = action(async () => { if (!state.pdf) return; const page = await state.pdf.getPage(state.page); const fit = ($('#pdf-scroll').clientWidth - 36) / page.getViewport({ scale: 1 }).width; state.zoom = Math.max(.25, Math.min(3, (state.zoom || fit) * factor)); await renderPage(); });
 $('#zoom-fit').onclick = action(async () => { state.zoom = null; await renderPage(); });
+$('#fullscreen').onclick = action(async () => {
+  if (readingMode) return exitReadingMode();
+  setReadingMode(true);
+  if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+    try { await document.documentElement.requestFullscreen(); ownsFullscreen = true; }
+    catch { toast('Reading mode is on. Your browser did not allow full screen; press Escape to return.'); }
+  }
+});
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && ownsFullscreen) { ownsFullscreen = false; setReadingMode(false); }
+});
+document.addEventListener('keydown', event => {
+  const shortcut = readingShortcut(event, { reading: Boolean(state.pdf && state.paper), dialogOpen: $('#form-dialog').open, selectionActive: !window.getSelection()?.isCollapsed });
+  if (!shortcut || (shortcut === 'exit' && !readingMode)) return;
+  event.preventDefault();
+  if (shortcut === 'exit') { exitReadingMode().catch(e => toast(e.message)); return; }
+  const button = $({ next: '#next-page', previous: '#prev-page', 'zoom-in': '#zoom-in', 'zoom-out': '#zoom-out' }[shortcut]);
+  if (!button.disabled) button.click();
+});
 document.addEventListener('mouseup', captureSelection); document.addEventListener('keyup', captureSelection);
 $('#highlight').onclick = action(() => addAnnotation(false)); $('#comment').onclick = action(() => addAnnotation(true)); $('#page-comment').onclick = action(() => addAnnotation(true, true));
 $('#copy-notes').onclick = action(() => copy(state.paper.notes)); $('#copy-comments').onclick = action(() => copy(`# ${state.paper.title}\n\n` + [...state.paper.annotations].sort((a, b) => a.page - b.page).map(annotationText).join('\n\n---\n\n')));

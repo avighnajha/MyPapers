@@ -6,3 +6,15 @@
 #pdf-scroll{scrollbar-gutter:stable}#pdf-status:empty{display:none}.paper-illustration{width:122px}.empty{padding:35px 0}
 #folders{flex:1 0 auto}.sidebar-bottom{flex-shrink:0}
 .pdf-icon{touch-action:none;user-select:none;cursor:grab}.paper-row.dragging{opacity:.5}.paper-row.dragging .pdf-icon{cursor:grabbing}
+.reading-mode-bar{display:none}
+body.reading-mode{height:100dvh;overflow:hidden}
+.reading-mode .sidebar,.reading-mode .topbar,.reading-mode .paper-heading,.reading-mode #comments-panel{display:none!important}
+.reading-mode main{height:100dvh;width:100%}
+.reading-mode #workspace{height:100%;background:var(--bg)}
+.reading-mode .reading-mode-bar{display:flex;justify-content:space-between;gap:12px;padding:10px 18px;font-size:10px;color:var(--muted);border-bottom:1px solid var(--line)}
+.reading-mode .reading-layout{height:auto;flex:1;overflow:auto}
+.reading-mode .reader{min-width:0}
+.reading-mode #notes-panel{display:flex!important;width:clamp(240px,25vw,360px)}
+.reading-mode .reader-toolbar{flex-wrap:wrap}
+.reading-mode .reader-footnote{display:none}
+@media(max-width:600px){.reading-mode #notes-panel{width:200px}.reading-mode .reader{min-width:260px}.reading-mode .reading-mode-bar span:last-child{display:none}}

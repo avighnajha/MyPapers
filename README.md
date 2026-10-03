@@ -7,6 +7,8 @@ A quiet, self-hosted reading room for your papers. A single Node process serves 
 - Organize papers into projects, each with **Queue** and **Read** folders.
 - Upload multiple PDFs, drop files onto a folder, and drag library papers between folders. The **Move** button also works with a keyboard or touch.
 - Read PDFs with selectable text, page navigation, zoom, download, and opening the original for printing.
+- Choose **Full screen** for a focused PDF reader with personal notes on the right and annotation tools available; the annotations list is hidden. **Escape** or **Exit full screen** returns to the normal workspace and restores your panel settings. Browsers that cannot enter native fullscreen still use the focused layout.
+- Use **Left/Right arrows** or **Page Up/Page Down** to turn pages, and **+ / −** to zoom. Shortcuts leave typing fields, comment dialogs, and selected PDF text alone.
 - Highlight passages in three colors, attach comments, or leave a page note.
 - Review annotations with their quoted passages and page numbers; jump to a passage, edit a comment, or copy one/all annotations.
 - Write plain-text notes beside the paper. Notes save automatically; the status shows when saving succeeds or needs a retry.
