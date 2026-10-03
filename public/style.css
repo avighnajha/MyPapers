@@ -48,3 +48,4 @@ body.reading-mode{height:100dvh;overflow:hidden}
   .reading-mode #notes-panel[hidden]{display:none!important}
   .panel-heading{height:45px;padding:12px}.note-caption{padding-top:14px}#notes{padding:12px 16px}.annotation-search{padding:10px 12px}
 }
+#bookmark-page{font-size:17px;line-height:1}#bookmark-page[aria-pressed=true]{color:var(--green)}#bookmark-list{font-size:11px;max-width:130px;padding:5px}

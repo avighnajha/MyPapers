@@ -138,7 +138,7 @@ async function openPaper(id) {
   $('#library').hidden = true; $('#workspace').hidden = false; $('#library-button').hidden = false;
   $('#paper-title').textContent = paper.title; $('#paper-status').value = paper.status;
   $('#breadcrumb').textContent = `Library / ${state.projects.find(p => p.id === paper.project_id)?.name || 'Paper'}`;
-  $('#notes').value = paper.notes; $('#save-state').textContent = 'Saved'; updateWordCount(); renderAnnotations();
+  $('#notes').value = paper.notes; $('#save-state').textContent = 'Saved'; updateWordCount(); renderAnnotations(); renderBookmarks();
   $('#download').href = `/api/papers/${id}/pdf`; $('#download').download = `${paper.title}.pdf`; $('#open-pdf').href = `/api/papers/${id}/pdf`;
   $('#pdf-page').hidden = true; $('#pdf-status').textContent = 'Opening your paper…';
   try {
@@ -176,7 +176,35 @@ async function renderPage() {
   $('#pdf-status').textContent = ''; $('#page-number').value = number; $('#prev-page').disabled = number === 1; $('#next-page').disabled = number === pdf.numPages;
   $('#zoom-fit').textContent = state.zoom ? `${Math.round(scale * 100)}%` : 'Fit';
   renderHighlights();
+  renderBookmarks();
 }
+function renderBookmarks() {
+  const pages = state.paper?.bookmarks || [];
+  const saved = pages.includes(state.page);
+  $('#bookmark-page').textContent = saved ? '★' : '☆';
+  $('#bookmark-page').setAttribute('aria-pressed', String(saved));
+  $('#bookmark-page').setAttribute('aria-label', saved ? `Remove bookmark from page ${state.page}` : `Bookmark page ${state.page}`);
+  $('#bookmark-page').title = saved ? 'Remove page bookmark' : 'Bookmark this page';
+  $('#bookmark-list').innerHTML = `<option value="">Bookmarks (${pages.length})</option>` + pages.map(page => `<option value="${page}">Page ${page}</option>`).join('');
+  $('#bookmark-list').disabled = !pages.length;
+}
+$('#bookmark-page').onclick = action(async () => {
+  if (!state.paper || !state.pdf || $('#bookmark-page').disabled) return;
+  const paper = state.paper, page = state.page, saved = paper.bookmarks.includes(page);
+  $('#bookmark-page').disabled = true;
+  try {
+    await api(`/papers/${paper.id}/bookmarks/${page}`, { method: saved ? 'DELETE' : 'PUT' });
+    paper.bookmarks = saved ? paper.bookmarks.filter(p => p !== page) : [...new Set([...paper.bookmarks, page])].sort((a, b) => a - b);
+    if (state.paper === paper) renderBookmarks();
+    toast(saved ? 'Bookmark removed.' : `Page ${page} bookmarked.`);
+  } finally { $('#bookmark-page').disabled = false; }
+});
+$('#bookmark-list').onchange = action(async () => {
+  const page = Number($('#bookmark-list').value);
+  if (!state.pdf || !page) return;
+  if (page > state.pdf.numPages) { renderBookmarks(); toast('This bookmark is outside the PDF page range.'); return; }
+  state.page = page; await renderPage(); $('#pdf-scroll').scrollTop = 0;
+});
 function captureSelection() {
   const sel = window.getSelection(); if (!sel || sel.isCollapsed || !sel.rangeCount || !state.paper) return;
   const range = sel.getRangeAt(0), layer = $('#text-layer');

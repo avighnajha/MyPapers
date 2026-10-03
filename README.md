@@ -5,6 +5,7 @@ A quiet, self-hosted reading room for your papers. A single Node process serves 
 ## What it does
 
 - Organize papers into projects, each with **Queue** and **Read** folders.
+- Bookmark pages using the **☆ / ★** button next to the page controls. Choose a saved page from **Bookmarks** to jump back to it. Bookmarks save on the server with the paper, including on phones and in fullscreen.
 - Upload multiple PDFs, drop files onto a folder, and drag library papers between folders. The **Move** button also works with a keyboard or touch.
 - Read PDFs with selectable text, page navigation, zoom, download, and opening the original for printing.
 - Choose **Full screen** for a focused PDF reader with personal notes on the right and annotation tools available; the annotations list is hidden. **Escape** or **Exit full screen** returns to the normal workspace and restores your panel settings. Browsers that cannot enter native fullscreen still use the focused layout.

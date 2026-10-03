@@ -32,8 +32,14 @@ test('library workflow persists files, moves, notes and annotations across a res
     response = await request(`/papers/${id}`, { method: 'PATCH', ...json({ project_id: other, status: 'read', notes: 'A connection worth revisiting.' }) }); assert.equal(response.status, 200);
     const annotation = { page: 1, quote: 'Reading becomes useful', comment: 'Connect this to the next paper.', color: 'green', rects: [{ x: .1, y: .2, width: .3, height: .02 }] };
     response = await request(`/papers/${id}/annotations`, { method: 'POST', ...json(annotation) }); assert.equal(response.status, 201); const aid = (await response.json()).id;
+    for (const page of [2, 1, 2]) assert.equal((await request(`/papers/${id}/bookmarks/${page}`, { method: 'PUT' })).status, 200);
+    assert.equal((await request(`/papers/${id}/bookmarks/0`, { method: 'PUT' })).status, 400);
+    assert.equal((await request(`/papers/${id}/bookmarks/1.5`, { method: 'PUT' })).status, 400);
     await server.stop(); server = await launch(data);
     const saved = await (await request(`/papers/${id}`)).json(); assert.equal(saved.notes, 'A connection worth revisiting.'); assert.equal(saved.project_id, other); assert.equal(saved.status, 'read'); assert.equal(saved.annotations[0].quote, annotation.quote); assert.deepEqual(saved.annotations[0].rects, annotation.rects);
+    assert.deepEqual(saved.bookmarks, [1, 2]);
+    assert.equal((await request(`/papers/${id}/bookmarks/1`, { method: 'DELETE' })).status, 200);
+    assert.deepEqual((await (await request(`/papers/${id}`)).json()).bookmarks, [2]);
     response = await request(`/projects/${other}`, { method: 'DELETE' }); assert.equal(response.status, 400);
     response = await request(`/papers/${id}/annotations/${aid}`, { method: 'PATCH', ...json({ comment: 'Revised thought.' }) }); assert.equal(response.status, 200);
     assert.equal((await (await request(`/papers/${id}`)).json()).annotations[0].comment, 'Revised thought.');
