@@ -129,7 +129,7 @@ async function openPaper(id) {
   document.body.classList.add('paper-open');
   document.body.classList.remove('mobile-tools-open');
   $('#annotation-search').value = '';
-  if (window.matchMedia('(max-width: 760px)').matches) {
+  if (window.matchMedia('(max-width: 760px), (max-width: 1100px) and (hover: none) and (pointer: coarse)').matches) {
     $('#notes-panel').hidden = true; $('#comments-panel').hidden = true;
     $('#toggle-notes').setAttribute('aria-pressed', 'false'); $('#mobile-notes').setAttribute('aria-pressed', 'false');
     $('#toggle-comments').setAttribute('aria-pressed', 'false'); $('#mobile-comments').setAttribute('aria-pressed', 'false');
@@ -233,7 +233,7 @@ function renderAnnotations() {
   $('#annotation-count').textContent = $('#annotation-search').value ? `${annotations.length}/${state.paper.annotations.length}` : annotations.length;
   $('#annotations').innerHTML = annotations.length ? annotations.map(a => `<article class="annotation-card ${a.color}" data-annotation="${a.id}"><button class="page-link" data-page="${a.page}">PAGE ${a.page} ↗</button>${a.quote ? `<blockquote>${esc(a.quote)}</blockquote>` : ''}${a.comment ? `<p>${esc(a.comment)}</p>` : ''}<div class="annotation-actions"><button data-copy="${a.id}">Copy</button><button data-edit="${a.id}">${a.comment ? 'Edit' : 'Add comment'}</button><button data-delete="${a.id}">Delete</button></div></article>`).join('') : '<div class="annotations-empty">Leave a trail of thoughts.<br><br>Select a passage to highlight it or attach a comment. Your passages and comments will appear here, ready to copy.</div>';
   if (!annotations.length && $('#annotation-search').value) $('#annotations').innerHTML = '<p class="annotations-empty">No matching annotations.</p>';
-  $('#annotations').querySelectorAll('[data-page]').forEach(el => el.onclick = action(async () => { state.page = Number(el.dataset.page); if (window.matchMedia('(max-width: 760px)').matches) $('#comments-panel').hidden = true; await renderPage(); const a = state.paper.annotations.find(a => a.id === el.closest('[data-annotation]').dataset.annotation); const rect = a?.rects[0]; $('#pdf-scroll').scrollTo({ top: rect ? rect.y * $('#pdf-page').offsetHeight : 0, behavior: 'smooth' }); }));
+  $('#annotations').querySelectorAll('[data-page]').forEach(el => el.onclick = action(async () => { state.page = Number(el.dataset.page); if (window.matchMedia('(max-width: 760px), (max-width: 1100px) and (hover: none) and (pointer: coarse)').matches) $('#comments-panel').hidden = true; await renderPage(); const a = state.paper.annotations.find(a => a.id === el.closest('[data-annotation]').dataset.annotation); const rect = a?.rects[0]; $('#pdf-scroll').scrollTo({ top: rect ? rect.y * $('#pdf-page').offsetHeight : 0, behavior: 'smooth' }); }));
   $('#annotations').querySelectorAll('[data-copy]').forEach(el => el.onclick = action(() => copy(annotationText(annotations.find(a => a.id === el.dataset.copy)))));
   $('#annotations').querySelectorAll('[data-edit]').forEach(el => el.onclick = action(async () => { const a = annotations.find(a => a.id === el.dataset.edit), id = state.paper.id; const result = await dialog('Edit comment', `<label>Comment<textarea name="comment" maxlength="30000">${esc(a.comment)}</textarea></label>`); if (!result) return; await api(`/papers/${id}/annotations/${a.id}`, { method: 'PATCH', body: result }); a.comment = result.comment; if (state.paper?.id === id) renderAnnotations(); }));
   $('#annotations').querySelectorAll('[data-delete]').forEach(el => el.onclick = action(async () => { const id = state.paper.id; await api(`/papers/${id}/annotations/${el.dataset.delete}`, { method: 'DELETE' }); if (state.paper?.id === id) { state.paper.annotations = state.paper.annotations.filter(a => a.id !== el.dataset.delete); renderAnnotations(); renderHighlights(); } }));
@@ -303,7 +303,7 @@ $('#pdf-scroll').addEventListener('touchstart', event => {
 $('#pdf-scroll').addEventListener('touchmove', event => { if (event.touches.length !== 1) swipeStart = null; }, { passive: true });
 $('#pdf-scroll').addEventListener('touchcancel', () => swipeStart = null, { passive: true });
 $('#pdf-scroll').addEventListener('touchend', event => {
-  if (!swipeStart || !state.pdf || !window.matchMedia('(max-width: 760px)').matches) return;
+  if (!swipeStart || !state.pdf || !window.matchMedia('(max-width: 760px), (max-width: 1100px) and (hover: none) and (pointer: coarse)').matches) return;
   const start = swipeStart; swipeStart = null; const touch = event.changedTouches[0]; if (!touch) return;
   const scroll = $('#pdf-scroll');
   const direction = swipeDirection({ dx: touch.clientX - start.x, dy: touch.clientY - start.y, duration: performance.now() - start.time, multipleTouches: event.touches.length > 0, selectionActive: !window.getSelection()?.isCollapsed, horizontallyScrollable: scroll.scrollWidth > scroll.clientWidth + 3 });
