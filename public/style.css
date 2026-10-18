@@ -57,3 +57,17 @@ body.reading-mode{height:100dvh;overflow:hidden}
   .reading-layout,.reading-mode .reading-layout{min-height:0;flex:1 1 0}
   #pdf-scroll{padding:6px max(8px,env(safe-area-inset-right)) 6px max(8px,env(safe-area-inset-left))}
 }
+/* A single translucent fill keeps intersecting math glyph boxes even. */
+#highlights{mix-blend-mode:multiply}
+#highlights svg{width:100%;height:100%;display:block}
+.highlight-fill{fill:#edc83b;fill-opacity:.25}
+.highlight-fill.green{fill:#69bd81}.highlight-fill.pink{fill:#e58bab}
+[data-theme=dark] #highlights{mix-blend-mode:screen}
+[data-theme=dark] .highlight-fill{fill-opacity:.16}
+.annotation-preview:empty{min-height:1px}
+.annotation-preview:has(img){margin:12px 0;border-left:3px solid #e8ce74;padding:8px;background:#fff;border-radius:0 5px 5px 0}
+.annotation-card.green .annotation-preview{border-color:#95d398}.annotation-card.pink .annotation-preview{border-color:#f3a2ba}
+.annotation-preview img{display:block;width:100%;height:auto}
+[data-theme=dark] .annotation-preview:has(img){background:#1f1f1f}
+[data-theme=dark] .annotation-preview img{filter:invert(.88) hue-rotate(180deg)}
+.annotation-card .preview-transcript{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}

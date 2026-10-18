@@ -1,3 +1,4 @@
+import { selectionBounds, highlightPath } from './annotation-visuals.js';
 import { readingShortcut, swipeDirection, filterAnnotations } from './reading-controls.js';
 import { closePdfSession } from './pdf-session.js';
 let pdfjs;
@@ -151,6 +152,7 @@ async function openPaper(id) {
     if (token !== state.open) { await task.destroy(); return; }
     state.pdf = pdf; $('#page-count').textContent = `/ ${pdf.numPages}`; $('#page-number').max = pdf.numPages;
     await renderPage();
+    observeAnnotationPreviews();
   } catch (e) { if (token === state.open) $('#pdf-status').textContent = `Unable to display this PDF: ${e.message}. You can still download the original.`; }
 }
 async function renderPage() {
@@ -225,13 +227,59 @@ async function addAnnotation(withComment, pageOnly = false) {
   if (state.paper?.id === id) { state.paper.annotations.push(a); renderAnnotations(); renderHighlights(); state.selection = null; window.getSelection()?.removeAllRanges(); }
   toast(withComment ? 'Comment saved.' : 'Highlight saved.');
 }
-function renderHighlights() { $('#highlights').innerHTML = (state.paper?.annotations || []).filter(a => a.page === state.page).flatMap(a => a.rects.map(r => `<span class="highlight-rect ${a.color}" style="left:${r.x * 100}%;top:${r.y * 100}%;width:${r.width * 100}%;height:${r.height * 100}%"></span>`)).join(''); }
+function renderHighlights() {
+  const annotations = (state.paper?.annotations || []).filter(a => a.page === state.page);
+  $('#highlights').innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${['yellow', 'green', 'pink'].map(color => `<path class="highlight-fill ${color}" d="${highlightPath(annotations.filter(a => a.color === color).flatMap(a => a.rects))}"/>`).join('')}</svg>`;
+}
+let previewObserver;
+function observeAnnotationPreviews() {
+  previewObserver?.disconnect();
+  const pdf = state.pdf;
+  if (!pdf) return;
+  let queue = Promise.resolve(), lastPage, pageCanvas;
+  const observer = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      observer.unobserve(entry.target);
+      queue = queue.then(async () => {
+        const target = entry.target;
+        if (!target.isConnected || state.pdf !== pdf) return;
+        const a = state.paper.annotations.find(a => a.id === target.dataset.preview);
+        const bounds = a && selectionBounds(a.rects, .006);
+        if (!bounds || a.page > pdf.numPages) return;
+        if (lastPage !== a.page) {
+          const page = await pdf.getPage(a.page);
+          if (!target.isConnected || state.pdf !== pdf) return;
+          const base = page.getViewport({scale:1});
+          const viewport = page.getViewport({scale:Math.min(2, 1800 / base.width)});
+          pageCanvas = document.createElement('canvas');
+          pageCanvas.width = Math.ceil(viewport.width); pageCanvas.height = Math.ceil(viewport.height);
+          await page.render({canvasContext:pageCanvas.getContext('2d'), viewport}).promise;
+          lastPage = a.page;
+        }
+        if (!target.isConnected || state.pdf !== pdf) return;
+        const crop = document.createElement('canvas');
+        crop.width = Math.max(1, Math.ceil(bounds.width * pageCanvas.width));
+        crop.height = Math.max(1, Math.ceil(bounds.height * pageCanvas.height));
+        crop.getContext('2d').drawImage(pageCanvas, bounds.x * pageCanvas.width, bounds.y * pageCanvas.height, bounds.width * pageCanvas.width, bounds.height * pageCanvas.height, 0, 0, crop.width, crop.height);
+        const image = document.createElement('img');
+        image.alt = a.quote; image.src = crop.toDataURL('image/png');
+        target.replaceChildren(image); target.hidden = false;
+        target.nextElementSibling?.classList.add('preview-transcript');
+      }).catch(() => {}); // Keep the selectable text fallback if a PDF cannot render.
+    }
+  }, {root:$('#annotations'), rootMargin:'100px'});
+  previewObserver = observer;
+  $('#annotations').querySelectorAll('[data-preview]').forEach(el => observer.observe(el));
+}
+
 function annotationText(a) { return `Page ${a.page}${a.quote ? '\n> ' + a.quote.replace(/\n/g, '\n> ') : ''}${a.comment ? '\n\n' + a.comment : ''}`; }
 async function copy(text) { try { await navigator.clipboard.writeText(text); toast('Copied to clipboard.'); } catch { await dialog('Copy this text', `<label>Select and copy<textarea readonly>${esc(text)}</textarea></label>`, 'Done'); } }
 function renderAnnotations() {
   const annotations = filterAnnotations(state.paper.annotations, $('#annotation-search').value).sort((a, b) => a.page - b.page || a.created_at.localeCompare(b.created_at));
   $('#annotation-count').textContent = $('#annotation-search').value ? `${annotations.length}/${state.paper.annotations.length}` : annotations.length;
-  $('#annotations').innerHTML = annotations.length ? annotations.map(a => `<article class="annotation-card ${a.color}" data-annotation="${a.id}"><button class="page-link" data-page="${a.page}">PAGE ${a.page} ↗</button>${a.quote ? `<blockquote>${esc(a.quote)}</blockquote>` : ''}${a.comment ? `<p>${esc(a.comment)}</p>` : ''}<div class="annotation-actions"><button data-copy="${a.id}">Copy</button><button data-edit="${a.id}">${a.comment ? 'Edit' : 'Add comment'}</button><button data-delete="${a.id}">Delete</button></div></article>`).join('') : '<div class="annotations-empty">Leave a trail of thoughts.<br><br>Select a passage to highlight it or attach a comment. Your passages and comments will appear here, ready to copy.</div>';
+  $('#annotations').innerHTML = annotations.length ? annotations.map(a => `<article class="annotation-card ${a.color}" data-annotation="${a.id}"><button class="page-link" data-page="${a.page}">PAGE ${a.page} ↗</button>${a.quote ? `${a.rects.length ? `<div class="annotation-preview" data-preview="${a.id}" aria-label="Original passage"></div>` : ''}<blockquote>${esc(a.quote)}</blockquote>` : ''}${a.comment ? `<p>${esc(a.comment)}</p>` : ''}<div class="annotation-actions"><button data-copy="${a.id}">Copy</button><button data-edit="${a.id}">${a.comment ? 'Edit' : 'Add comment'}</button><button data-delete="${a.id}">Delete</button></div></article>`).join('') : '<div class="annotations-empty">Leave a trail of thoughts.<br><br>Select a passage to highlight it or attach a comment. Your passages and comments will appear here, ready to copy.</div>';
+  observeAnnotationPreviews();
   if (!annotations.length && $('#annotation-search').value) $('#annotations').innerHTML = '<p class="annotations-empty">No matching annotations.</p>';
   $('#annotations').querySelectorAll('[data-page]').forEach(el => el.onclick = action(async () => { state.page = Number(el.dataset.page); if (window.matchMedia('(max-width: 760px), (max-width: 1100px) and (hover: none) and (pointer: coarse)').matches) $('#comments-panel').hidden = true; await renderPage(); const a = state.paper.annotations.find(a => a.id === el.closest('[data-annotation]').dataset.annotation); const rect = a?.rects[0]; $('#pdf-scroll').scrollTo({ top: rect ? rect.y * $('#pdf-page').offsetHeight : 0, behavior: 'smooth' }); }));
   $('#annotations').querySelectorAll('[data-copy]').forEach(el => el.onclick = action(() => copy(annotationText(annotations.find(a => a.id === el.dataset.copy)))));
